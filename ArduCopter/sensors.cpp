@@ -141,6 +141,7 @@ void Copter::init_optflow()
 #if OPTFLOW == ENABLED
     // initialise optical flow sensor
     optflow.init();
+    optflow_kv.init();
 #endif      // OPTFLOW == ENABLED
 }
 
