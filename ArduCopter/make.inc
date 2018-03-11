@@ -1,3 +1,4 @@
+LIBRARIES += AP_OpticalFlow_VK
 LIBRARIES += AP_Common
 LIBRARIES += AP_Menu
 LIBRARIES += AP_AdvancedFailsafe

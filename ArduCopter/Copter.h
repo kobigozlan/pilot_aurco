@@ -124,6 +124,8 @@
 #endif
 #if OPTFLOW == ENABLED
  # include <AP_OpticalFlow/AP_OpticalFlow.h>
+# include <AP_OpticalFlow_VK/AP_OpticalFlow_VK.h>
+
 #endif
 #if VISUAL_ODOMETRY_ENABLED == ENABLED
  # include <AP_VisualOdom/AP_VisualOdom.h>
