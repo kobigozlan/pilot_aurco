@@ -25,7 +25,6 @@
 class Quaternion {
 public:
     float        q1, q2, q3, q4;
-
     // constructor creates a quaternion equivalent
     // to roll=0, pitch=0, yaw=0
     Quaternion()
@@ -84,6 +83,8 @@ public:
     void from_axis_angle_fast(const Vector3f &axis, float theta);
 
     void rotate_fast(const Vector3f &v);
+
+    void rotate_vector_by_quaternion(Vector3f &v);
 
     // get euler roll angle
     float       get_euler_roll() const;

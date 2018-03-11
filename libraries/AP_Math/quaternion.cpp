@@ -366,3 +366,23 @@ Quaternion Quaternion::operator/(const Quaternion &v) const
     ret.q4 = (rquat0*quat3 - rquat1*quat2 + rquat2*quat1 - rquat3*quat0);
     return ret;
 }
+
+void Quaternion::rotate_vector_by_quaternion(Vector3f &v){
+
+	Quaternion vec(0,v.x,v.y,v.z);
+	Quaternion conj = this->inverse();
+
+	Quaternion res = (conj*vec)*(*this);
+
+	//Quaternion result;// = conj;
+
+	v.x=res.q2;
+	v.y=res.q3;
+	v.z=res.q4;
+
+}
+
+
+
+
+

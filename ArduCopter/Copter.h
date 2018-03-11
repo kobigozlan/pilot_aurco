@@ -264,6 +264,7 @@ private:
     // Optical flow sensor
 #if OPTFLOW == ENABLED
     OpticalFlow optflow{ahrs};
+    AP_OpticalFlow_VK optflow_kv;
 #endif
 
     // gnd speed limit required to observe optical flow sensor limits
