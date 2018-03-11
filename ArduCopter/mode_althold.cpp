@@ -218,7 +218,7 @@ void Copter::ModeAltHold::run() {
 //			kf_2d_opicalflow.get_prediction_x(optFeature.x,temp,temp);
 //			kf_2d_opicalflow.get_prediction_y(optFeature.y,temp,temp);
 
-			hal.console->printf("fea : (%.2f,%.2f)\r\n", optFeature.x,optFeature.y);
+			//hal.console->printf("fea : (%.2f,%.2f)\r\n", optFeature.x,optFeature.y);
 
 			Vector3f diff = optFeature - oldOptFeature;
 
