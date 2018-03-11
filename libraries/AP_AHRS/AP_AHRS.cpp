@@ -114,6 +114,10 @@ const AP_Param::GroupInfo AP_AHRS::var_info[] = {
     // @User: Advanced
     AP_GROUPINFO("GPS_MINSATS", 11, AP_AHRS, _gps_minsats, 6),
 
+    // p_flow,d_flow,i_flow;
+    AP_GROUPINFO("P_FLOW_LED",  12, AP_AHRS, p_flow, 4.2f),
+    AP_GROUPINFO("D_FLOW_LED",  13, AP_AHRS, d_flow, 3.5f),
+    AP_GROUPINFO("I_FLOW_LED",  7, AP_AHRS, i_flow, 0.0005f),
     // NOTE: index 12 was for GPS_DELAY, but now removed, fixed delay
     // of 1 was found to be the best choice
 
