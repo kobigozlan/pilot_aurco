@@ -92,6 +92,50 @@ void Copter::Log_Write_Optflow()
  #endif     // OPTFLOW == ENABLED
 }
 
+// vk LOG_PID_OPT,LOG_OPT_PI
+struct PACKED log_Optflow_pid {
+    LOG_PACKET_HEADER;
+    uint64_t time_us;
+    float roll;
+    float pitch;
+};
+void Copter::Log_Write_PID_OPT(float roll,float pitch){
+	struct log_Optflow_pid  pkt= {
+			LOG_PACKET_HEADER_INIT(LOG_PID_OPT),
+			time_us		:AP_HAL::micros64(),
+			roll		:roll,
+			pitch		:pitch
+	};
+	DataFlash.WriteBlock(&pkt, sizeof(pkt));
+}
+struct PACKED log_Optflow_pi {
+    LOG_PACKET_HEADER;
+    uint64_t time_us;
+    float dt;
+    float x;
+    float y;
+    float z;
+    float pe;
+    float re;
+    float dp;
+    float dr;
+};
+void Copter::Log_Write_OPT_PI(float dt,float x,float y,float z,float pe,float re,float dp,float dr){
+	struct log_Optflow_pi  pkt= {
+			LOG_PACKET_HEADER_INIT(LOG_OPT_PI),
+			time_us		:AP_HAL::micros64(),
+			dt		:dt,
+			x		:x,
+			y		:y,
+			z		:z,
+			pe		:pe,
+			re		:re,
+			dp		:dp,
+			dr		:dr
+	};
+	DataFlash.WriteBlock(&pkt, sizeof(pkt));
+}
+
 struct PACKED log_Nav_Tuning {
     LOG_PACKET_HEADER;
     uint64_t time_us;
@@ -604,6 +648,14 @@ const struct LogStructure Copter::log_structure[] = {
       "PTUN", "QBfHHH",          "TimeUS,Param,TunVal,CtrlIn,TunLo,TunHi", "s-----", "F-----" },
     { LOG_OPTFLOW_MSG, sizeof(log_Optflow),
       "OF",   "QBffff",   "TimeUS,Qual,flowX,flowY,bodyX,bodyY", "s-EEEE", "F-0000" },
+
+      //vk_opt - LOG_OPT_PI,LOG_PID_OPT
+    { LOG_PID_OPT, sizeof(log_Optflow_pid),
+      "OPID",   "Qff",   "TimeUS,roll,pitch", "s--", "F--"},
+
+    { LOG_OPT_PI, sizeof(log_Optflow_pi),
+       "OPPI",   "Qffffffff",   "TimeUS,dt,x,y,z,pe,re,dp,dr", "s--------", "F--------"},
+
     { LOG_NAV_TUNING_MSG, sizeof(log_Nav_Tuning),
        "NTUN", "Qffffffffff", "TimeUS,DPosX,DPosY,PosX,PosY,DVelX,DVelY,VelX,VelY,DAccX,DAccY", "smmmmnnnnoo", "FBBBBBBBBBB" },
     { LOG_CONTROL_TUNING_MSG, sizeof(log_Control_Tuning),

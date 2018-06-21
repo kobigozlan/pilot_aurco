@@ -6,7 +6,7 @@
  */
 Quaternion copterRotInv;
 Vector3f lidarDirection, optFeature, oldOptFeature;
-float roll_out, pitch_out, roll_err, pitch_err,temp;
+float roll_out, pitch_out, roll_err, pitch_err,temp,ref_alt,p_flow,d_flow,i_flow;
 uint32_t lastTime = 0;
 //KF2D kf_2d_opicalflow;
 // althold_init - initialise althold controller
@@ -31,11 +31,17 @@ bool Copter::ModeAltHold::init(bool ignore_checks) {
 	oldOptFeature.x = 0;
 	oldOptFeature.y = 0;
 	oldOptFeature.z = 0;
+	roll_out =0;
+	pitch_out=0;
 	roll_err = 0;
 	pitch_err = 0;
 	//KF
 	//kf_2d_opicalflow = KF2D();
-
+	ref_alt = ahrs.ref_alt.cast_to_float();
+	p_flow = ahrs.p_flow.cast_to_float();
+	d_flow = ahrs.d_flow.cast_to_float();
+	i_flow = ahrs.i_flow.cast_to_float();
+//	hal.console->printf("init : (p : %.2f,d : %.2f,i : %.2f,ref : %.2f)\r\n", p_flow,d_flow,i_flow,ref_alt);
 	return true;
 }
 
@@ -177,36 +183,37 @@ void Copter::ModeAltHold::run() {
 				copter.aparm.angle_max);
 #endif
 
-		float dt = (AP_HAL::millis() - lastTime)*0.001f;
-		lastTime=AP_HAL::millis();
 
+		//hal.console->printf("In AltHold Loop\r\n");
 		//kobi vlad update
-		if (copter.optflow_kv.update() && target_roll == 0
-				&& target_pitch == 0) {
+		float dt = (AP_HAL::millis() - lastTime)*0.001f;
+		bool isUpdated = copter.optflow_kv.update();
+		if(isUpdated){
+			lastTime = AP_HAL::millis();
+		}
+
+		if ( isUpdated && target_roll == 0 && target_pitch == 0) {
 			/*
 			 * Pitch forward : < 0
 			 * Pitch backward : > 0
 			 * Roll right : > 0
 			 * Roll left : < 0
 			 */
-			float p_flow = ahrs.p_flow.cast_to_float();
-			float d_flow = ahrs.d_flow.cast_to_float();
-			float i_flow = ahrs.i_flow.cast_to_float();
-
 			copter.optflow_kv.get_data(optFeature);
 			optFeature /= optFeature.z;
-			uint16_t alt = copter.rangefinder.distance_cm_orient(
-					ROTATION_PITCH_270);
+//			uint16_t alt = copter.rangefinder.distance_cm_orient(
+//					ROTATION_PITCH_270);
+			float alt = inertial_nav.get_altitude();
 			//set lidar vector direction
 			lidarDirection.x = 0;
 			lidarDirection.y = 0;
 			lidarDirection.z = alt;
 
 			copterRotInv.from_euler(ahrs.roll, ahrs.pitch, 0);
-			copterRotInv.inverse().rotate_vector_by_quaternion(lidarDirection);
+			//copterRotInv.inverse().rotate_vector_by_quaternion(lidarDirection);
 
-			optFeature *= lidarDirection.z;
-			copterRotInv.inverse().rotate_vector_by_quaternion(optFeature);
+			optFeature *= (ref_alt-alt);
+			copterRotInv.rotate_vector_by_quaternion(optFeature);
 
 			//hal.console->printf("V : (%.2f,%.2f,%.2f),%.2f\r\n",optFeature.x,optFeature.y,optFeature.z,lidarDirection.z);
 			//hal.console->printf("V : (%.2f,%.2f,%.2f)\r\n",lidarDirection.x,lidarDirection.y,lidarDirection.z);
@@ -218,20 +225,20 @@ void Copter::ModeAltHold::run() {
 //			kf_2d_opicalflow.get_prediction_x(optFeature.x,temp,temp);
 //			kf_2d_opicalflow.get_prediction_y(optFeature.y,temp,temp);
 
-			//hal.console->printf("fea : (%.2f,%.2f)\r\n", optFeature.x,optFeature.y);
+//			hal.console->printf("fea : (%.2f,%.2f,%.2f)\r\n", optFeature.x,optFeature.y,lidarDirection.z);
 
 			Vector3f diff = optFeature - oldOptFeature;
 
 			float d_roll = diff.y / dt;
 			float d_pitch = diff.x / dt;
 
-			roll_err += optFeature.y*dt;
-			pitch_err += optFeature.x*dt;
+			roll_err += optFeature.y * dt;
+			pitch_err += optFeature.x * dt;
+			//roll_err = constrain_float(roll_err, -200, 200);
+			//pitch_err = constrain_float(pitch_err, -200, 200);
 
-			roll_out = optFeature.y * p_flow + d_roll * d_flow
-					+ roll_err * i_flow;
-			pitch_out = -optFeature.x * p_flow - d_pitch * d_flow
-					- pitch_err * i_flow;
+			roll_out = optFeature.y * p_flow + d_roll * d_flow + roll_err * i_flow;
+			pitch_out = -optFeature.x * p_flow - d_pitch * d_flow - pitch_err * i_flow;
 
 			oldOptFeature.x = optFeature.x;
 			oldOptFeature.y = optFeature.y;
@@ -239,13 +246,20 @@ void Copter::ModeAltHold::run() {
 
 //			hal.console->printf("fea : (%.2f,%.2f)\r\n", optFeature.x,optFeature.y);
 //			hal.console->printf("err : (%.2f,%.2f)\r\n", roll_err, pitch_err);
-			//hal.console->printf("Target : (%.2f,%.2f),(%.2f,%.2f)\r\n", target_roll,target_pitch,d_roll,d_pitch);
+//			hal.console->printf("Target : (%.2f,%.2f),(%.2f,%.2f)\r\n", target_roll,target_pitch,d_roll,d_pitch);
 
 			roll_out = constrain_float(roll_out, -1000, 1000);
 			pitch_out = constrain_float(pitch_out, -1000, 1000);
-
-			//hal.console->printf("(%.2f,%.2f)\r\n", roll_out,pitch_out);
+			/*
+			 * Pitch forward : < 0
+			 * Pitch backward : > 0
+			 * Roll right : > 0
+			 * Roll left : < 0
+			 */
+//			hal.console->printf("(%.2f,%.2f)\r\n", roll_out,pitch_out);
 			//hal.console->printf("(%.2f,%.2f)\r\n", roll_err* i_flow,pitch_err*i_flow);
+
+			copter.Log_Write_OPT_PI(dt*1000.0f,optFeature.x,optFeature.y,optFeature.z,pitch_err,roll_err,d_pitch,d_roll);
 
 		} else if (target_roll != 0 || target_pitch != 0) {
 			//}else{
@@ -261,10 +275,12 @@ void Copter::ModeAltHold::run() {
 			pitch_out = target_pitch;
 			//ahrs.p_flow,ahrs.d_flow;
 		}
-
-		//hal.console->printf("Flow : (%.2f,%.2f)\r\n", ahrs.p_flow.cast_to_float(), ahrs.d_flow.cast_to_float());
-		//hal.console->printf("T : (%.2f,%.2f)\r\n", roll_out, pitch_out);
-		//hal.console->printf("O : (%.2f,%.2f)\r\n", optFeature.x, optFeature.y);
+//		copter.Log_Write_Optflow();
+		//vk_opt
+		copter.Log_Write_PID_OPT(roll_out,pitch_out);
+//		hal.console->printf("Flow : (%.2f,%.2f)\r\n", ahrs.p_flow.cast_to_float(), ahrs.d_flow.cast_to_float());
+//		hal.console->printf("T : (%.2f,%.2f)\r\n", roll_out, pitch_out);
+//		hal.console->printf("O : (%.2f,%.2f,%.2f)\r\n", optFeature.x, optFeature.y,optFeature.z);
 
 		// call attitude controller
 		attitude_control->input_euler_angle_roll_pitch_euler_rate_yaw(roll_out, pitch_out, target_yaw_rate, get_smoothing_gain());

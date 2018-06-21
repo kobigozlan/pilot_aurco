@@ -771,6 +771,10 @@ private:
     void landinggear_update();
 
     // Log.cpp
+    //vk_opt
+    void Log_Write_PID_OPT(float roll,float pitch);
+    void Log_Write_OPT_PI(float dt,float x,float y,float z,float pe,float re,float dp,float dr);
+
     void Log_Write_Optflow();
     void Log_Write_Nav_Tuning();
     void Log_Write_Control_Tuning();

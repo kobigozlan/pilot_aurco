@@ -335,6 +335,10 @@ enum DevOptions {
 #define LOG_GUIDEDTARGET_MSG            0x22
 #define LOG_THROW_MSG                   0x23
 
+////vk_opt
+#define LOG_PID_OPT						0x24
+#define LOG_OPT_PI						0x25
+
 #define MASK_LOG_ATTITUDE_FAST          (1<<0)
 #define MASK_LOG_ATTITUDE_MED           (1<<1)
 #define MASK_LOG_GPS                    (1<<2)

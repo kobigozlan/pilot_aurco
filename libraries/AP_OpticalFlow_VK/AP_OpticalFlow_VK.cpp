@@ -15,7 +15,7 @@ void AP_OpticalFlow_VK::init()
 
     sem = hal.util->new_semaphore();
 
-    dev->register_periodic_callback(20000, FUNCTOR_BIND_MEMBER(&AP_OpticalFlow_VK::read_sens, void));
+    dev->register_periodic_callback(10000, FUNCTOR_BIND_MEMBER(&AP_OpticalFlow_VK::read_sens, void));
 };
 
 void AP_OpticalFlow_VK::read_sens(void)
