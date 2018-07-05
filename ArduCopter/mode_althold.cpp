@@ -6,7 +6,7 @@
  */
 Quaternion copterRotInv;
 Vector3f lidarDirection, optFeature, oldOptFeature;
-float roll_out, pitch_out, roll_err, pitch_err,temp,ref_alt,p_flow,d_flow,i_flow;
+float roll_out, pitch_out, roll_err, pitch_err,temp,ref_alt,p_flow,d_flow,i_flow,i_flow_max;
 uint32_t lastTime = 0;
 //KF2D kf_2d_opicalflow;
 // althold_init - initialise althold controller
@@ -41,6 +41,7 @@ bool Copter::ModeAltHold::init(bool ignore_checks) {
 	p_flow = ahrs.p_flow.cast_to_float();
 	d_flow = ahrs.d_flow.cast_to_float();
 	i_flow = ahrs.i_flow.cast_to_float();
+	i_flow_max = ahrs.i_flow_max.cast_to_float()*1000;
 //	hal.console->printf("init : (p : %.2f,d : %.2f,i : %.2f,ref : %.2f)\r\n", p_flow,d_flow,i_flow,ref_alt);
 	return true;
 }
@@ -234,8 +235,8 @@ void Copter::ModeAltHold::run() {
 
 			roll_err += optFeature.y * dt;
 			pitch_err += optFeature.x * dt;
-			//roll_err = constrain_float(roll_err, -200, 200);
-			//pitch_err = constrain_float(pitch_err, -200, 200);
+			roll_err = constrain_float(roll_err, -i_flow_max, i_flow_max);
+			pitch_err = constrain_float(pitch_err, -i_flow_max, i_flow_max);
 
 			roll_out = optFeature.y * p_flow + d_roll * d_flow + roll_err * i_flow;
 			pitch_out = -optFeature.x * p_flow - d_pitch * d_flow - pitch_err * i_flow;

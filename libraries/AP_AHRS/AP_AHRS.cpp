@@ -23,6 +23,7 @@ extern const AP_HAL::HAL& hal;
 // table of user settable parameters
 const AP_Param::GroupInfo AP_AHRS::var_info[] = {
     // index 0 and 1 are for old parameters that are no longer not used
+	AP_GROUPINFO("M_FLOW",  0, AP_AHRS, i_flow_max, 0.2f),
 	AP_GROUPINFO("REF_ALT",  1, AP_AHRS, ref_alt, 2.4f),
     // @Param: GPS_GAIN
     // @DisplayName: AHRS GPS gain

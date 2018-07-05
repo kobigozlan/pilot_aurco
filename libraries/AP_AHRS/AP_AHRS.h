@@ -255,7 +255,7 @@ public:
     float yaw;
 
     //vlad
-    AP_Float p_flow,d_flow,i_flow,ref_alt;
+    AP_Float p_flow,d_flow,i_flow,ref_alt,i_flow_max;
 
     // integer Euler angles (Degrees * 100)
     int32_t roll_sensor;
