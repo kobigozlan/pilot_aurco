@@ -5,9 +5,10 @@
  * Init and run calls for althold, flight mode
  */
 Quaternion copterRotInv;
-Vector3f lidarDirection, optFeature, oldOptFeature;
+Vector3f lidarDirection, optFeature, oldOptFeature, relativeOptFeature;
 float roll_out, pitch_out, roll_err, pitch_err,temp,ref_alt,p_flow,d_flow,i_flow,i_flow_max;
 uint32_t lastTime = 0;
+bool first_init = true;
 //KF2D kf_2d_opicalflow;
 // althold_init - initialise althold controller
 bool Copter::ModeAltHold::init(bool ignore_checks) {
@@ -25,6 +26,7 @@ bool Copter::ModeAltHold::init(bool ignore_checks) {
 	takeoff_stop();
 
 	//reset data
+	first_init = true;
 	optFeature.x = 0;
 	optFeature.y = 0;
 	optFeature.z = 0;
@@ -202,6 +204,19 @@ void Copter::ModeAltHold::run() {
 			 */
 			copter.optflow_kv.get_data(optFeature);
 			optFeature /= optFeature.z;
+
+			if(first_init){
+				relativeOptFeature.x = optFeature.x;
+				relativeOptFeature.y = optFeature.y;
+				relativeOptFeature.z = optFeature.z;
+				first_init = false;
+			}
+			else{
+				optFeature.x -=relativeOptFeature.x;
+				optFeature.y -=relativeOptFeature.y;
+//				optFeature.z -=relativeOptFeature.z;
+			}
+
 //			uint16_t alt = copter.rangefinder.distance_cm_orient(
 //					ROTATION_PITCH_270);
 			float alt = inertial_nav.get_altitude();
@@ -257,7 +272,7 @@ void Copter::ModeAltHold::run() {
 			 * Roll right : > 0
 			 * Roll left : < 0
 			 */
-//			hal.console->printf("(%.2f,%.2f)\r\n", roll_out,pitch_out);
+			//hal.console->printf("(%.2f,%.2f)\r\n", roll_out,pitch_out);
 			//hal.console->printf("(%.2f,%.2f)\r\n", roll_err* i_flow,pitch_err*i_flow);
 
 			copter.Log_Write_OPT_PI(dt*1000.0f,optFeature.x,optFeature.y,optFeature.z,pitch_err,roll_err,d_pitch,d_roll);
