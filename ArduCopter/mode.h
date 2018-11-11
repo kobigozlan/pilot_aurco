@@ -162,6 +162,12 @@ protected:
 
 private:
 
+//    Quaternion copterRotInv;
+//    Vector3f lidarDirection, optFeature, oldOptFeature, relativeOptFeature;
+//    float roll_out, pitch_out, roll_err, pitch_err,temp,ref_alt,p_flow,d_flow,i_flow,i_flow_max;
+//    uint32_t lastTime = 0;
+//    bool first_init = true;
+
 };
 
 
@@ -832,6 +838,8 @@ public:
 
     bool init(bool ignore_checks) override;
     void run() override;
+    void runInnerRun(float &target_roll,float &target_pitch,float &target_yaw_rate,float &target_climb_rate,
+    		float &takeoff_climb_rate,float &brake_to_loiter_mix,float &controller_to_pilot_roll_mix,float &controller_to_pilot_pitch_mix,float &vel_fw,float &vel_right,const Vector3f& vel);
 
     bool requires_GPS() const override { return true; }
     bool has_manual_throttle() const override { return false; }
@@ -845,6 +853,17 @@ protected:
 
 private:
 
+//    Quaternion copterRotInv;
+//    Vector3f lidarDirection, optFeature;
+    Vector3f oldOptFeature, relativeOptFeature;
+//    float roll_out, pitch_out;
+    float roll_err, pitch_err;
+    float temp;
+//    float ref_alt, p_flow, d_flow, i_flow, i_flow_max;
+    uint32_t lastTime = 0;
+    bool first_init = true;
+
+
     void poshold_update_pilot_lean_angle(float &lean_angle_filtered, float &lean_angle_raw);
     int16_t poshold_mix_controls(float mix_ratio, int16_t first_control, int16_t second_control);
     void poshold_update_brake_angle_from_velocity(int16_t &brake_angle, float velocity);
@@ -852,6 +871,10 @@ private:
     void poshold_get_wind_comp_lean_angles(int16_t &roll_angle, int16_t &pitch_angle);
     void poshold_roll_controller_to_pilot_override();
     void poshold_pitch_controller_to_pilot_override();
+
+    bool runOpticalFlow(float &roll,float &pitch,const float &target_roll,const float &target_pitch);
+    void initOpticalFlowVariables();
+
 
 };
 
