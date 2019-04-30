@@ -35,6 +35,8 @@ bool Copter::ModeLand::init(bool ignore_checks)
     // reset flag indicating if pilot has applied roll or pitch inputs during landing
     ap.land_repo_active = false;
 
+    Mode::initOpticalFlowVariables();
+
     return true;
 }
 
@@ -128,8 +130,12 @@ void Copter::ModeLand::nogps_run()
     // set motors to full range
     motors->set_desired_spool_state(AP_Motors::DESIRED_THROTTLE_UNLIMITED);
 
+    // VK optflow
+	float dt;
+	bool isOpticaFlowRun = Mode::runOpticalFlow(target_roll, target_pitch,dt);
     // call attitude controller
-    attitude_control->input_euler_angle_roll_pitch_euler_rate_yaw(target_roll, target_pitch, target_yaw_rate, get_smoothing_gain());
+//    attitude_control->input_euler_angle_roll_pitch_euler_rate_yaw(target_roll, target_pitch, target_yaw_rate, get_smoothing_gain());
+	attitude_control->input_euler_angle_roll_pitch_euler_rate_yaw(roll_out_VK, pitch_out_VK, target_yaw_rate, get_smoothing_gain());
 
     // pause before beginning land descent
     if(land_pause && millis()-land_start_time >= LAND_WITH_DELAY_MS) {
@@ -314,3 +320,5 @@ void Copter::set_mode_land_with_pause(mode_reason_t reason)
 bool Copter::landing_with_GPS() {
     return (control_mode == LAND && land_with_gps);
 }
+
+

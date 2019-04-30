@@ -97,6 +97,20 @@ protected:
     // end pass-through functions
 
     void zero_throttle_and_relax_ac();
+
+    // VK modifications
+    //    Quaternion copterRotInv;
+    //    Vector3f lidarDirection, optFeature;
+    Vector3f oldOptFeature, relativeOptFeature;
+    float roll_out_VK, pitch_out_VK;
+    float roll_err, pitch_err;
+    float temp;
+    //    float ref_alt, p_flow, d_flow, i_flow, i_flow_max;
+    uint32_t lastTime = 0;
+    bool first_init = true;
+    bool runOpticalFlow(const float &target_roll,const float &target_pitch,float &dt);
+    void initOpticalFlowVariables();
+
 };
 
 
@@ -787,6 +801,9 @@ private:
 
     void gps_run();
     void nogps_run();
+
+	bool runOpticalFlow(const float &target_roll,const float &target_pitch,float &dt);
+	void initOpticalFlowVariables();
 };
 
 
@@ -853,15 +870,7 @@ protected:
 
 private:
 
-//    Quaternion copterRotInv;
-//    Vector3f lidarDirection, optFeature;
-    Vector3f oldOptFeature, relativeOptFeature;
-//    float roll_out, pitch_out;
-    float roll_err, pitch_err;
-    float temp;
-//    float ref_alt, p_flow, d_flow, i_flow, i_flow_max;
-    uint32_t lastTime = 0;
-    bool first_init = true;
+
 
 
     void poshold_update_pilot_lean_angle(float &lean_angle_filtered, float &lean_angle_raw);
@@ -872,8 +881,9 @@ private:
     void poshold_roll_controller_to_pilot_override();
     void poshold_pitch_controller_to_pilot_override();
 
-    bool runOpticalFlow(float &roll,float &pitch,const float &target_roll,const float &target_pitch);
-    void initOpticalFlowVariables();
+//    bool runOpticalFlow(float &roll,float &pitch,const float &target_roll,const float &target_pitch,float &dt);
+//    bool runOpticalFlow(const float &target_roll,const float &target_pitch,float &dt);
+//    void initOpticalFlowVariables();
 
 
 };

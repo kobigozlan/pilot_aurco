@@ -23,7 +23,7 @@ extern const AP_HAL::HAL& hal;
 // table of user settable parameters
 const AP_Param::GroupInfo AP_AHRS::var_info[] = {
     // index 0 and 1 are for old parameters that are no longer not used
-	AP_GROUPINFO("M_FLOW",  0, AP_AHRS, i_flow_max, 0.2f),
+	AP_GROUPINFO("M_FLOW",  0, AP_AHRS, i_flow_max, 0.202f),
 	AP_GROUPINFO("REF_ALT",  1, AP_AHRS, ref_alt, 2.4f),
     // @Param: GPS_GAIN
     // @DisplayName: AHRS GPS gain
@@ -116,10 +116,10 @@ const AP_Param::GroupInfo AP_AHRS::var_info[] = {
     AP_GROUPINFO("GPS_MINSATS", 11, AP_AHRS, _gps_minsats, 6),
 
     // p_flow,d_flow,i_flow;ref_alt
-    AP_GROUPINFO("P_FLOW_LED",  12, AP_AHRS, p_flow, 4.2f),
-    AP_GROUPINFO("D_FLOW_LED",  13, AP_AHRS, d_flow, 3.5f),
+    AP_GROUPINFO("P_FLOW_LED",  12, AP_AHRS, p_flow, 5.0f),
+    AP_GROUPINFO("D_FLOW_LED",  13, AP_AHRS, d_flow, 0.7f),
 
-    AP_GROUPINFO("I_FLOW_LED",  7, AP_AHRS, i_flow, 0.0005f),
+    AP_GROUPINFO("I_FLOW_LED",  7, AP_AHRS, i_flow, 0.00005f),
 
     // NOTE: index 12 was for GPS_DELAY, but now removed, fixed delay
     // of 1 was found to be the best choice

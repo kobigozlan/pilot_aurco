@@ -29,13 +29,14 @@ public:
     // retrieve latest sensor data - returns true if new data is available
     bool update();
     
-    void get_data(float& x,float& y,float& z);
+    bool get_data(float& x,float& y,float& z);
 
-    void get_data(Vector3f &v);
+    bool get_data(Vector3f &v);
 
     void read_optical_kv(void);
 
     bool opt_healthy = 1; // true if sensor is healthy
+    bool is_err =0;
 
     uint8_t data_buf[16];
 

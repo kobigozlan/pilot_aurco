@@ -15,7 +15,7 @@ void AP_OpticalFlow_VK::init()
 
     sem = hal.util->new_semaphore();
 
-    dev->register_periodic_callback(10000, FUNCTOR_BIND_MEMBER(&AP_OpticalFlow_VK::read_sens, void));
+    dev->register_periodic_callback(15000, FUNCTOR_BIND_MEMBER(&AP_OpticalFlow_VK::read_sens, void));
 };
 
 void AP_OpticalFlow_VK::read_sens(void)
@@ -58,9 +58,11 @@ bool AP_OpticalFlow_VK::update()
         for(int i = 0 ; i < 12 ; i++){
             sum += data_buf[i];
         }
+        is_err = true;
         uint32_t check_sum = *(uint32_t*)(&data_buf[12]);
         if(check_sum != sum || check_sum == 0){
             new_data = false;
+            is_err = false;
         }
 //    	hal.console->printf(("n2: %d\r\n"),new_data);
         _last_update_ms = timestamp;
@@ -76,13 +78,14 @@ bool AP_OpticalFlow_VK::update()
     return new_data;
 };
 
-void AP_OpticalFlow_VK::get_data(float& x,float& y,float& z)
+bool AP_OpticalFlow_VK::get_data(float& x,float& y,float& z)
 {
     x = *(float*)(&data_buf[0]);
     y = *(float*)(&data_buf[4]);
     z = *(float*)(&data_buf[8]);
+    return is_err;
 };
 
-void AP_OpticalFlow_VK::get_data(Vector3f &v){
-	this->get_data(v.x,v.y,v.z);
+bool AP_OpticalFlow_VK::get_data(Vector3f &v){
+	return this->get_data(v.x,v.y,v.z);
 }

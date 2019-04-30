@@ -73,11 +73,12 @@ static struct {
 //uint32_t lastTime = 0;
 //bool first_init = true;
 
+float false_update_time = 0;
 
 // poshold_init - initialise PosHold controller
 bool Copter::ModePosHold::init(bool ignore_checks) {
 
-	// fail to initialise PosHold mode if no GPS lock
+//	 fail to initialise PosHold mode if no GPS lock
 	if (!copter.position_ok() && !ignore_checks) {
 		return false;
 	}
@@ -122,7 +123,7 @@ bool Copter::ModePosHold::init(bool ignore_checks) {
 	poshold.wind_comp_pitch = 0;
 	poshold.wind_comp_timer = 0;
 
-	initOpticalFlowVariables();
+	Mode:: initOpticalFlowVariables();
 
 	return true;
 }
@@ -220,12 +221,30 @@ void Copter::ModePosHold::run() {
 
 
 
-		float roll_out, pitch_out;
+		float dt;
+//		bool isOpticaFlowRun = runOpticalFlow(roll_out, pitch_out, target_roll, target_pitch,dt);
+		bool isOpticaFlowRun = Mode::runOpticalFlow(target_roll, target_pitch,dt);
+		if(isOpticaFlowRun){
+			false_update_time+=5*dt;
+		}else{
+			false_update_time-=dt;
+		}
 
-		if (runOpticalFlow(roll_out, pitch_out, target_roll, target_pitch)) {
+		false_update_time = constrain_float(false_update_time, 0.0, 2.0);
+
+//		hal.console->printf("(%.2f)\r\n", false_update_time);
+
+		DataFlash_Class::instance()->Log_Write("PHOF", "TimeUS,val,roll_out,pitch_out", "Qfff",AP_HAL::micros64(),false_update_time,roll_out_VK,pitch_out_VK);
+
+		if (false_update_time > 1)
+		{
+//			hal.console->printf("(OPT_FLOW)\r\n");
 			attitude_control->input_euler_angle_roll_pitch_euler_rate_yaw(
-					roll_out, pitch_out, target_yaw_rate, get_smoothing_gain());
-		} else {
+					this->roll_out_VK,this->pitch_out_VK, target_yaw_rate, get_smoothing_gain());
+		}
+		else
+		{
+//			hal.console->printf("(POS_HOLD)\r\n");
 			runInnerRun(target_roll, target_pitch, target_yaw_rate,
 					target_climb_rate, takeoff_climb_rate, brake_to_loiter_mix,
 					controller_to_pilot_roll_mix, controller_to_pilot_pitch_mix,
@@ -235,6 +254,8 @@ void Copter::ModePosHold::run() {
 					get_smoothing_gain());
 
 		}
+
+
 
 		// update attitude controller targets
 //		attitude_control->input_euler_angle_roll_pitch_euler_rate_yaw(
@@ -765,131 +786,3 @@ void Copter::ModePosHold::poshold_pitch_controller_to_pilot_override() {
 }
 
 
-bool Copter::ModePosHold::runOpticalFlow(float &roll_out, float &pitch_out,
-		const float &target_roll,const float &target_pitch) {
-
-	Vector3f lidarDirection, optFeature;
-	Quaternion copterRotInv;
-	float ref_alt = ahrs.ref_alt.cast_to_float();
-	float p_flow = ahrs.p_flow.cast_to_float();
-	float d_flow = ahrs.d_flow.cast_to_float();
-	float i_flow = ahrs.i_flow.cast_to_float();
-	float i_flow_max = ahrs.i_flow_max.cast_to_float() * 1000;
-
-//	float roll_err, pitch_err;
-	//kobi vlad update
-	float dt = (AP_HAL::millis() - lastTime) * 0.001f;
-	bool isUpdated = copter.optflow_kv.update();
-	if (isUpdated) {
-		lastTime = AP_HAL::millis();
-	}
-
-	if (isUpdated && target_roll == 0 && target_pitch == 0) {
-		/*
-		 * Pitch forward : < 0
-		 * Pitch backward : > 0
-		 * Roll right : > 0
-		 * Roll left : < 0
-		 */
-		copter.optflow_kv.get_data(optFeature);
-		optFeature /= optFeature.z;
-
-		if (optFeature.x == 0f && optFeature.y == 0f && optFeature.z == 1.0f )
-			return false;
-
-		if (first_init) {
-			relativeOptFeature.x = optFeature.x;
-			relativeOptFeature.y = optFeature.y;
-			relativeOptFeature.z = optFeature.z;
-			first_init = false;
-		} else {
-			optFeature.x -= relativeOptFeature.x;
-			optFeature.y -= relativeOptFeature.y;
-//				optFeature.z -=relativeOptFeature.z;
-		}
-
-//			uint16_t alt = copter.rangefinder.distance_cm_orient(
-//					ROTATION_PITCH_270);
-		float alt = inertial_nav.get_altitude();
-		//set lidar vector direction
-		lidarDirection.x = 0;
-		lidarDirection.y = 0;
-		lidarDirection.z = alt;
-
-		copterRotInv.from_euler(ahrs.roll, ahrs.pitch, 0);
-		//copterRotInv.inverse().rotate_vector_by_quaternion(lidarDirection);
-
-		optFeature *= (ref_alt - alt);
-		copterRotInv.rotate_vector_by_quaternion(optFeature);
-
-		Vector3f diff = optFeature - oldOptFeature;
-
-		float d_roll = diff.y / dt;
-		float d_pitch = diff.x / dt;
-
-		roll_err += optFeature.y * dt;
-		pitch_err += optFeature.x * dt;
-		roll_err = constrain_float(roll_err, -i_flow_max, i_flow_max);
-		pitch_err = constrain_float(pitch_err, -i_flow_max, i_flow_max);
-
-		roll_out = optFeature.y * p_flow + d_roll * d_flow + roll_err * i_flow;
-		pitch_out = -optFeature.x * p_flow - d_pitch * d_flow
-				- pitch_err * i_flow;
-
-		oldOptFeature.x = optFeature.x;
-		oldOptFeature.y = optFeature.y;
-		oldOptFeature.z = optFeature.z;
-
-		roll_out = constrain_float(roll_out, -1000, 1000);
-		pitch_out = constrain_float(pitch_out, -1000, 1000);
-		/*
-		 * Pitch forward : < 0
-		 * Pitch backward : > 0
-		 * Roll right : > 0
-		 * Roll left : < 0
-		 */
-		copter.Log_Write_OPT_PI(dt * 1000.0f, optFeature.x, optFeature.y,
-				optFeature.z, pitch_err, roll_err, d_pitch, d_roll);
-
-		return true;
-
-	} else if (target_roll != 0 || target_pitch != 0) {
-		//}else{
-		optFeature.x = 0;
-		optFeature.y = 0;
-		optFeature.z = 0;
-		oldOptFeature.x = 0;
-		oldOptFeature.y = 0;
-		oldOptFeature.z = 0;
-		roll_err = 0;
-		pitch_err = 0;
-		roll_out = target_roll;
-		pitch_out = target_pitch;
-		//ahrs.p_flow,ahrs.d_flow;
-	}
-//		copter.Log_Write_Optflow();
-	//vk_opt
-	copter.Log_Write_PID_OPT(roll_out, pitch_out);
-
-	return true;
-}
-void Copter::ModePosHold::initOpticalFlowVariables() {
-	//reset data
-	first_init = true;
-//	optFeature.x = 0;
-//	optFeature.y = 0;
-//	optFeature.z = 0;
-	oldOptFeature.x = 0;
-	oldOptFeature.y = 0;
-	oldOptFeature.z = 0;
-//	roll_out = 0;
-//	pitch_out = 0;
-//	roll_err = 0;
-//	pitch_err = 0;
-
-//	ref_alt = ahrs.ref_alt.cast_to_float();
-//	p_flow = ahrs.p_flow.cast_to_float();
-//	d_flow = ahrs.d_flow.cast_to_float();
-//	i_flow = ahrs.i_flow.cast_to_float();
-//	i_flow_max = ahrs.i_flow_max.cast_to_float() * 1000;
-}

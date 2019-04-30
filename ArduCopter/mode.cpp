@@ -429,3 +429,141 @@ uint16_t Copter::Mode::get_pilot_speed_dn()
 {
     return copter.get_pilot_speed_dn();
 }
+
+//bool Copter::ModePosHold::runOpticalFlow(float &roll_out, float &pitch_out,
+//		const float &target_roll,const float &target_pitch,float &dt) {
+bool Copter::Mode::runOpticalFlow(const float &target_roll,const float &target_pitch,float &dt) {
+	Vector3f lidarDirection, optFeature;
+	Quaternion copterRotInv;
+	float ref_alt = ahrs.ref_alt.cast_to_float();
+	float p_flow = ahrs.p_flow.cast_to_float();
+	float d_flow = ahrs.d_flow.cast_to_float();
+	float i_flow = ahrs.i_flow.cast_to_float();
+	float i_flow_max = ahrs.i_flow_max.cast_to_float() * 1000;
+
+//	float roll_err, pitch_err;
+	//kobi vlad update
+	dt = (AP_HAL::millis() - lastTime) * 0.001f;
+//	lastTime = AP_HAL::millis();
+	bool isUpdated = copter.optflow_kv.update();
+	if (isUpdated) {
+		lastTime = AP_HAL::millis();
+		bool get = copter.optflow_kv.get_data(optFeature);
+		if(get){
+		relativeOptFeature.x=optFeature.x;
+		relativeOptFeature.y=optFeature.y;
+		relativeOptFeature.z=optFeature.z;
+		}
+		else {
+
+		}
+//		optFeature /= optFeature.z;
+	}
+
+	if (target_roll == 0 && target_pitch == 0) {
+		/*
+		 * Pitch forward : < 0
+		 * Pitch backward : > 0
+		 * Roll right : > 0
+		 * Roll left : < 0
+		 */
+		if (optFeature.x == 0 && optFeature.y == 0 && optFeature.z == 1.0 ){
+			roll_out_VK  = 0;
+			pitch_out_VK = 0;
+			return false;
+		}
+
+		float alt = copter.rangefinder.distance_cm_orient(ROTATION_PITCH_270);
+//		float alt = inertial_nav.get_altitude();
+
+		copterRotInv.from_euler(ahrs.roll, ahrs.pitch, 0);
+		//copterRotInv.inverse().rotate_vector_by_quaternion(lidarDirection);
+
+		if(!isUpdated){
+			optFeature.x = relativeOptFeature.x;
+			optFeature.y = relativeOptFeature.y;
+			optFeature.z = relativeOptFeature.z;
+		}
+
+//		optFeature *= 5*sqrt(alt);
+//		optFeature *= log2f(alt+1);
+		optFeature *= alt;
+		copterRotInv.rotate_vector_by_quaternion(optFeature);
+
+		Vector3f diff = optFeature - oldOptFeature;
+
+		float d_roll  = constrain_float(diff.y / dt,-300,300);
+		float d_pitch = constrain_float(diff.x / dt,-300,300);
+
+		roll_err  += optFeature.y * dt;
+		pitch_err += optFeature.x * dt;
+		roll_err  = constrain_float(roll_err,  -i_flow_max, i_flow_max);
+		pitch_err = constrain_float(pitch_err, -i_flow_max, i_flow_max);
+
+		roll_out_VK  =  optFeature.y * p_flow + d_roll  * d_flow + roll_err  * i_flow;
+		pitch_out_VK = -optFeature.x * p_flow - d_pitch * d_flow - pitch_err * i_flow;
+
+		if(isUpdated || true){
+			oldOptFeature.x = optFeature.x;
+			oldOptFeature.y = optFeature.y;
+			oldOptFeature.z = optFeature.z;
+		}
+
+		roll_out_VK = constrain_float(roll_out_VK, -1000, 1000);
+		pitch_out_VK = constrain_float(pitch_out_VK, -1000, 1000);
+//		hal.console->printf("%.2f %.2f %.2f\r\n",alt, roll_out_VK, pitch_out_VK);
+		DataFlash_Class::instance()->Log_Write("PDVK", "TimeUS,r_e,p_e,d_r,d_p,drd,dpd,rei,pei","Qffffffff",AP_HAL::micros64(),roll_err,pitch_err,d_roll,d_pitch,d_roll  * d_flow,- d_pitch * d_flow,roll_err  * i_flow,- pitch_err * i_flow );
+
+
+		/*
+		 * Pitch forward : < 0
+		 * Pitch backward : > 0
+		 * Roll right : > 0
+		 * Roll left : < 0
+		 */
+//		copter.Log_Write_OPT_PI(dt * 1000.0f, optFeature.x, optFeature.y,optFeature.z, pitch_err, roll_err, d_pitch, d_roll);
+		DataFlash_Class::instance()->Log_Write("RPVK", "TimeUS,mode,of_X,of_Y,of_Z,roll_vk,pitch_vk","Qbfffff",AP_HAL::micros64(),100,optFeature.x,optFeature.y,optFeature.z,roll_out_VK,pitch_out_VK);
+
+		return true;
+
+	} else if (target_roll != 0 || target_pitch != 0) {
+		//}else{
+		optFeature.x = 0;
+		optFeature.y = 0;
+		optFeature.z = 0;
+		oldOptFeature.x = 0;
+		oldOptFeature.y = 0;
+		oldOptFeature.z = 0;
+		roll_err = 0;
+		pitch_err = 0;
+		roll_out_VK = target_roll;
+		pitch_out_VK = target_pitch;
+		//ahrs.p_flow,ahrs.d_flow;
+	}
+//		copter.Log_Write_Optflow();
+	//vk_opt
+//	copter.Log_Write_PID_OPT(roll_out_VK, pitch_out_VK);
+	DataFlash_Class::instance()->Log_Write("PDVK", "TimeUS,mode,of_X,of_Y,of_Z,roll_vk,pitch_vk","Qbfffff",AP_HAL::micros64(),50,optFeature.x,optFeature.y,optFeature.z,roll_out_VK,pitch_out_VK);
+
+	return false;
+}
+void Copter::Mode::initOpticalFlowVariables() {
+	//reset data
+	first_init = true;
+//	optFeature.x = 0;
+//	optFeature.y = 0;
+//	optFeature.z = 0;
+	oldOptFeature.x = 0;
+	oldOptFeature.y = 0;
+	oldOptFeature.z = 0;
+	roll_out_VK = 0;
+	pitch_out_VK = 0;
+	roll_err = 0;
+	pitch_err = 0;
+
+//	ref_alt = ahrs.ref_alt.cast_to_float();
+//	p_flow = ahrs.p_flow.cast_to_float();
+//	d_flow = ahrs.d_flow.cast_to_float();
+//	i_flow = ahrs.i_flow.cast_to_float();
+//	i_flow_max = ahrs.i_flow_max.cast_to_float() * 1000;
+}
